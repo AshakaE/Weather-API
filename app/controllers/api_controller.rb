@@ -1,6 +1,8 @@
 class ApiController < ApplicationController
+  skip_before_action :verify_authenticity_token
+
   before_action :set_default_format
-  before_action :authenticate_token!
+  before_action :authenticate_user!
   
   private
   
@@ -10,12 +12,11 @@ class ApiController < ApplicationController
 
     def authenticate_token!
       payload = JsonWebToken.decode(auth_token)
-      if payload.present?
-        @current_user = User.find(payload['sub'])
-        p @current_user
-      else
-        render json: {errors: ['Invalind auth token']}, status: :unanthorized
-      end
+      @current_user = User.find(payload['sub'])
+    rescue JWT::ExpiredSignature
+      render json: {errors: ['Auth token has expired']}, status: :unanthorized
+    rescue JWT::DecodeError
+      render json: {errors: ['Invalind auth token']}, status: :unanthorized
     end
 
     def auth_token
